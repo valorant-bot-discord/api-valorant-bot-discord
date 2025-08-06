@@ -1,0 +1,79 @@
+name: CI · Build (Maven) · Auto‑PR
+
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  push:
+    branches: [ 'feature/**' ]
+  workflow_dispatch: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-check:
+    name: Verificações de Qualidade (Java 17)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17 com cache Maven
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build com Maven
+        run: mvn -B clean verify
+
+      - name: Update dependency graph (opcional)
+        uses: advanced-security/maven-dependency-submission-action@v4
+
+  auto-pull-request:
+    name: Criar/Atualizar Pull Request
+    needs: quality-check
+    if: |
+      github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/heads/feature/') &&
+      needs.quality-check.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Criar ou atualizar PR automaticamente
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const {owner, repo} = context.repo;
+            const head = context.ref.replace('refs/heads/','');
+            const openPrs = await github.rest.pulls.list({
+              owner, repo,
+              head: `${owner}:${head}`,
+              base: 'develop',
+              state: 'open'
+            });
+
+            if (openPrs.data.length) {
+              core.notice(`PR #${openPrs.data[0].number} já existe ✅`);
+              return;
+            }
+
+            const pr = await github.rest.pulls.create({
+              owner, repo,
+              head,
+              base: 'develop',
+              title: `PR gerado automaticamente: ${head} -> develop`,
+              body: '',
+              draft: false
+            });
+
+            core.notice(`✅ PR criado: #${pr.data.number}`);
