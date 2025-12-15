@@ -7,7 +7,7 @@ permissions:
 on:
   push:
     branches: [ 'feature/**' ]
-  workflow_dispatch: {}
+  workflow_dispatch: { }
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -33,7 +33,7 @@ jobs:
         run: mvn -B clean verify
 
       - name: Análise Estática de Código
-        run: mvn checkstyle:check pmd:check spotbugs:check
+        run: mvn checkstyle:check pmd:check com.github.spotbugs:spotbugs-maven-plugin:check
 
       - name: Update dependency graph (opcional)
         uses: advanced-security/maven-dependency-submission-action@v4
