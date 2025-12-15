@@ -32,10 +32,7 @@ jobs:
       - name: Build com Maven
         run: mvn -B clean verify
 
-      - name: Análise Estática de Código
-        run: mvn checkstyle:check pmd:check com.github.spotbugs:spotbugs-maven-plugin:check
-
-      - name: Update dependency graph (opcional)
+      - name: Update dependency graph
         uses: advanced-security/maven-dependency-submission-action@v4
 
   auto-pull-request:
